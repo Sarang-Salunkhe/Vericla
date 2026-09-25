@@ -19,6 +19,12 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5173",
         ]
     )
+    max_upload_size_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    document_chunk_size: int = Field(default=1500, ge=200, le=10_000)
+    document_chunk_overlap: int = Field(default=200, ge=0)
+    document_session_ttl_seconds: int = Field(default=3600, gt=0)
+    max_pdf_pages: int = Field(default=500, gt=0)
+    max_extracted_text_chars: int = Field(default=2_000_000, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[1] / ".env",
