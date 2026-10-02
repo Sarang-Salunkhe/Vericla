@@ -92,7 +92,7 @@ export function AnalyzePage({
     return (
       <div className="v-page v-analyze-page">
         <EmptyState
-          icon="🔍"
+          icon="◉"
           title="No Document Selected"
           description="Choose an existing document from your active session or upload a new file on the Dashboard."
           actionLabel="Go to Dashboard"
@@ -110,7 +110,7 @@ export function AnalyzePage({
       {/* Workspace Header Bar */}
       <div className="v-workspace-header">
         <div className="v-workspace-title-box">
-          <span className="v-doc-big-icon">📄</span>
+          <span className="v-doc-big-icon" aria-hidden="true">▤</span>
           <div>
             <h2>{meta.filename}</h2>
             <div className="v-doc-meta-row">

@@ -15,22 +15,20 @@ export function HistoryPage({
   return (
     <div className="v-page v-history-page">
       <div className="v-section-header">
-        <h2>Session Document History</h2>
-        <p>Current active document sessions stored in ephemeral in-memory storage.</p>
+        <h2>Session history</h2>
+        <p>Documents and analyses available during this session.</p>
       </div>
 
       <div className="v-ephemeral-banner">
         <span className="v-ephemeral-badge">Session Only</span>
         <p>
-          Vericla operates with zero persistent database storage by default. Uploaded documents and
-          analysis results remain active only for your current session (TTL: 1 hour) and are automatically
-          purged upon expiration.
+          Documents remain available during the current session and expire afterward. History is not persistent.
         </p>
       </div>
 
       {sessionDocuments.length === 0 ? (
         <EmptyState
-          icon="⏱️"
+          icon="◷"
           title="No Active Documents in Session"
           description="Your session has no active documents. Upload a new PDF or TXT file to create a session."
           actionLabel="Go to Dashboard"
@@ -43,7 +41,7 @@ export function HistoryPage({
             return (
               <div key={meta.document_id} className="v-card v-history-card">
                 <div className="v-history-card-header">
-                  <span className="v-doc-icon">📄</span>
+                  <span className="v-doc-icon" aria-hidden="true">▤</span>
                   <div>
                     <h4>{meta.filename}</h4>
                     <span className="v-text-muted text-xs font-mono">

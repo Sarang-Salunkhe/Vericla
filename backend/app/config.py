@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     document_session_ttl_seconds: int = Field(default=3600, gt=0)
     max_pdf_pages: int = Field(default=500, gt=0)
     max_extracted_text_chars: int = Field(default=2_000_000, gt=0)
+    ai_provider: Literal["openai", "fake"] = "openai"
+    ai_api_key: SecretStr | None = None
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4o-mini"
+    ai_timeout_seconds: float = Field(default=30, gt=0, le=120)
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[1] / ".env",

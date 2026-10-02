@@ -251,9 +251,8 @@ def test_compare_endpoint_success(client: TestClient) -> None:
     data = cmp_res.json()
     assert data["doc1_id"] == doc1_id
     assert data["doc2_id"] == doc2_id
-    assert len(data["changes"]) > 0
-    change_types = {c["change_type"] for c in data["changes"]}
-    assert "MODIFIED" in change_types or "ADDED" in change_types
+    assert data["changes"] == []
+    assert data["summary"] == "No supported changes were identified in the cited document text."
 
 
 def test_compare_missing_document_returns_404(client: TestClient) -> None:

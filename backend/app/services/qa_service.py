@@ -2,7 +2,13 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.models import QAResult
-from app.services.ai_provider import AIProvider, get_ai_provider
+from app.schemas.ai_provider import QAProviderOutput
+from app.services.ai_provider import (
+    AIProvider,
+    AIProviderError,
+    get_ai_provider,
+    validate_provider_output,
+)
 from app.services.context_selection import (
     ContextSelectionService,
     get_context_selection_service,
@@ -46,25 +52,42 @@ class QAService:
         }
 
         try:
-            raw_output = self._ai_provider.answer_question(prompt, context)
-        except Exception as exc:
-            raise DocumentProcessingError(500, "AI provider Q&A failed.") from exc
+            raw_output = validate_provider_output(
+                QAProviderOutput,
+                self._ai_provider.answer_question(prompt, context),
+            )
+        except AIProviderError as exc:
+            raise DocumentProcessingError(exc.status_code, exc.message) from None
+        except Exception:
+            raise DocumentProcessingError(500, "AI provider Q&A failed.") from None
 
-        raw_ev = raw_output.get("evidence", [])
+        raw_ev = raw_output["evidence"]
         verified_ev = self._evidence_service.verify_evidence_references(raw_ev, doc, chunks)
 
-        uncertainty = raw_output.get("uncertainty", "SUPPORTED")
-        if not verified_ev and uncertainty == "SUPPORTED":
-            uncertainty = "NOT_FOUND"
+        answer = raw_output["simple_answer"]
+        uncertainty = raw_output["uncertainty"]
+        not_stated = raw_output.get("not_stated")
+        if uncertainty in {"NOT_FOUND", "UNSUPPORTED"}:
+            answer = "The supplied document context does not state an answer to this question."
+            not_stated = "No supporting statement was found in the selected document context."
+            verified_ev = []
+        elif uncertainty in {"SUPPORTED", "PARTIAL", "AMBIGUOUS"}:
+            verified_ev = self._evidence_service.anchor_claim_evidence(
+                answer, verified_ev, chunks
+            )
+            if not verified_ev:
+                answer = "The supplied document does not contain verified evidence sufficient to answer this question."
+                uncertainty = "NOT_FOUND"
+                not_stated = "No verified source passage supported the generated answer."
 
         return QAResult(
             qa_id=uuid4().hex,
             document_id=document_id,
             question=question,
-            simple_answer=raw_output.get("simple_answer", "No answer could be generated."),
+            simple_answer=answer,
             evidence=verified_ev,
             uncertainty=uncertainty,
-            not_stated=raw_output.get("not_stated"),
+            not_stated=not_stated,
             created_at=datetime.now(UTC),
         )
 

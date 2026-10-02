@@ -10,7 +10,13 @@ from app.models import (
     ReviewSignal,
     UserRole,
 )
-from app.services.ai_provider import AIProvider, get_ai_provider
+from app.schemas.ai_provider import AnalysisProviderOutput
+from app.services.ai_provider import (
+    AIProvider,
+    AIProviderError,
+    get_ai_provider,
+    validate_provider_output,
+)
 from app.services.context_selection import (
     ContextSelectionService,
     get_context_selection_service,
@@ -78,68 +84,102 @@ class AnalysisService:
         }
 
         try:
-            raw_output = self._ai_provider.analyze(prompt, context)
-        except Exception as exc:
-            raise DocumentProcessingError(500, "AI provider analysis failed.") from exc
+            raw_output = validate_provider_output(
+                AnalysisProviderOutput,
+                self._ai_provider.analyze(prompt, context),
+            )
+        except AIProviderError as exc:
+            raise DocumentProcessingError(exc.status_code, exc.message) from None
+        except Exception:
+            raise DocumentProcessingError(500, "AI provider analysis failed.") from None
 
         # Verify evidence for clauses
         clauses = []
-        for c in raw_output.get("clauses", []):
+        for c in raw_output["clauses"]:
             verified_ev = self._evidence_service.verify_evidence_references(
-                c.get("evidence", []), doc, chunks
+                c["evidence"], doc, chunks
             )
+            verified_ev = self._evidence_service.anchor_claim_evidence(
+                f"{c['title']} {c['text']}", verified_ev, chunks
+            )
+            if not verified_ev:
+                continue
             clauses.append(
                 ClauseInsight(
-                    title=c.get("title", "Clause"),
-                    text=c.get("text", ""),
+                    title=c["title"],
+                    text=c["text"],
                     evidence=verified_ev,
-                    uncertainty=c.get("uncertainty", "SUPPORTED"),
+                    uncertainty=c["uncertainty"],
                 )
             )
 
         # Verify evidence for obligations
         obligations = []
-        for o in raw_output.get("obligations", []):
+        for o in raw_output["obligations"]:
             verified_ev = self._evidence_service.verify_evidence_references(
-                o.get("evidence", []), doc, chunks
+                o["evidence"], doc, chunks
             )
+            verified_ev = self._evidence_service.anchor_claim_evidence(
+                o["description"], verified_ev, chunks
+            )
+            if not verified_ev:
+                continue
             obligations.append(
                 ObligationItem(
-                    party=o.get("party", "Party"),
-                    description=o.get("description", ""),
+                    party=o["party"],
+                    description=o["description"],
                     evidence=verified_ev,
-                    uncertainty=o.get("uncertainty", "SUPPORTED"),
+                    uncertainty=o["uncertainty"],
                 )
             )
 
         # Verify evidence for dates
         dates = []
-        for d in raw_output.get("dates", []):
+        for d in raw_output["dates"]:
             verified_ev = self._evidence_service.verify_evidence_references(
-                d.get("evidence", []), doc, chunks
+                d["evidence"], doc, chunks
             )
+            verified_ev = self._evidence_service.anchor_claim_evidence(
+                f"{d['label']} {d['date_text']}", verified_ev, chunks
+            )
+            if not verified_ev:
+                continue
             dates.append(
                 ImportantDate(
-                    label=d.get("label", "Date"),
-                    date_text=d.get("date_text", ""),
+                    label=d["label"],
+                    date_text=d["date_text"],
                     evidence=verified_ev,
                 )
             )
 
         # Verify evidence for review signals
         review_signals = []
-        for rs in raw_output.get("review_signals", []):
+        for rs in raw_output["review_signals"]:
             verified_ev = self._evidence_service.verify_evidence_references(
-                rs.get("evidence", []), doc, chunks
+                rs["evidence"], doc, chunks
             )
+            verified_ev = self._evidence_service.anchor_claim_evidence(
+                f"{rs['title']} {rs['description']}", verified_ev, chunks
+            )
+            if not verified_ev:
+                continue
             review_signals.append(
                 ReviewSignal(
-                    category=rs.get("category", "review"),
-                    title=rs.get("title", "Review Item"),
-                    description=rs.get("description", ""),
+                    category=rs["category"],
+                    title=rs["title"],
+                    description=rs["description"],
                     evidence=verified_ev,
                 )
             )
+
+        all_evidence = [
+            reference
+            for item in [*clauses, *obligations, *dates, *review_signals]
+            for reference in item.evidence
+        ]
+        summary = raw_output["summary"]
+        if not self._evidence_service.claim_is_anchored(summary, all_evidence, chunks):
+            summary = "No document claims could be verified against the supplied source evidence."
 
         analysis_id = uuid4().hex
         now = datetime.now(UTC)
@@ -147,14 +187,18 @@ class AnalysisService:
             analysis_id=analysis_id,
             document_id=document_id,
             role=role,
-            summary=raw_output.get("summary", "Document Analysis Summary"),
+            summary=summary,
             document_type=doc.document_type,
-            parties=raw_output.get("parties", []),
+            parties=[
+                party
+                for party in raw_output["parties"]
+                if party.casefold() in doc.normalized_text.casefold()
+            ],
             clauses=clauses,
             obligations=obligations,
             dates=dates,
             review_signals=review_signals,
-            questions=raw_output.get("questions", []),
+            questions=raw_output["questions"],
             created_at=now,
             expires_at=now + timedelta(seconds=self._settings.document_session_ttl_seconds),
         )

@@ -6,10 +6,10 @@ interface ReviewSignalsListProps {
 }
 
 const CATEGORY_STYLES: Record<string, { label: string; badgeClass: string; icon: string }> = {
-  attention: { label: 'Attention Required', badgeClass: 'v-badge-amber', icon: '⚡' },
-  review: { label: 'Recommended Review', badgeClass: 'v-badge-indigo', icon: '🔍' },
-  uncertain: { label: 'Uncertain Wording', badgeClass: 'v-badge-purple', icon: '❓' },
-  missing_information: { label: 'Missing Information', badgeClass: 'v-badge-rose', icon: '⚠️' },
+  attention: { label: 'Attention Required', badgeClass: 'v-badge-amber', icon: '!' },
+  review: { label: 'Recommended Review', badgeClass: 'v-badge-indigo', icon: '⌕' },
+  uncertain: { label: 'Uncertain Wording', badgeClass: 'v-badge-purple', icon: '?' },
+  missing_information: { label: 'Missing Information', badgeClass: 'v-badge-rose', icon: '—' },
 }
 
 export function ReviewSignalsList({ signals, onSelectEvidence }: ReviewSignalsListProps) {
@@ -27,7 +27,7 @@ export function ReviewSignalsList({ signals, onSelectEvidence }: ReviewSignalsLi
         const catInfo = CATEGORY_STYLES[sig.category] || {
           label: sig.category,
           badgeClass: 'v-badge-gray',
-          icon: '📌',
+          icon: '•',
         }
 
         return (

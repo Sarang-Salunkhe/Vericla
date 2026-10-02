@@ -40,6 +40,13 @@ export function UploadCard({ onSuccess, onStartUpload }: UploadCardProps) {
     }
   }
 
+  const handleDropzoneKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!file && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault()
+      fileInputRef.current?.click()
+    }
+  }
+
   const handleUploadSubmit = async () => {
     if (!file) return
 
@@ -87,6 +94,10 @@ export function UploadCard({ onSuccess, onStartUpload }: UploadCardProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !file && fileInputRef.current?.click()}
+        onKeyDown={handleDropzoneKeyDown}
+        role="button"
+        tabIndex={file ? -1 : 0}
+        aria-label={file ? `Selected file: ${file.name}` : 'Choose a PDF or TXT document to upload'}
       >
         <input
           ref={fileInputRef}
@@ -94,10 +105,11 @@ export function UploadCard({ onSuccess, onStartUpload }: UploadCardProps) {
           accept=".pdf,.txt"
           onChange={handleFileChange}
           style={{ display: 'none' }}
+          aria-label="Choose a PDF or TXT document"
         />
 
         <div className="v-drop-icon" aria-hidden="true">
-          📄
+          ▤
         </div>
 
         {file ? (
@@ -109,8 +121,9 @@ export function UploadCard({ onSuccess, onStartUpload }: UploadCardProps) {
           </div>
         ) : (
           <div className="v-drop-prompt">
-            <p className="v-drop-main">Drag & drop legal document here, or browse</p>
-            <p className="v-drop-sub">Supported formats: PDF, TXT (Maximum size: 10 MB)</p>
+            <p className="v-drop-main">Drop your document here</p>
+            <p className="v-drop-sub"><span className="v-file-browse">or choose a file</span></p>
+            <p className="v-drop-sub">PDF or TXT · Up to 10 MB</p>
           </div>
         )}
       </div>
